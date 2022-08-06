@@ -1,5 +1,7 @@
 //
-// Created by pedr0 on 05/08/22.
+// C++ for C programmers part B, first homework
+//
+// August 2022, Pietro Paolini, London.
 //
 #include <iostream>
 #include "HexBoard.h"
