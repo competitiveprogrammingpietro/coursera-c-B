@@ -4,6 +4,7 @@
 // August 2022, Pietro Paolini, London.
 //
 #include <iostream>
+#include <list>
 #include "HexBoard.h"
 
 HexCell::HexCell(vector<bool> &star) {
@@ -11,6 +12,24 @@ HexCell::HexCell(vector<bool> &star) {
     for (int i = 0; i < star.size(); i++)
     {
         m_star[i] = star[i];
+    }
+}
+
+pair<int, int> HexCell::TraverseEdge(int r, int c, LINK l) {
+    if (l == LINK::BACKWARDS) {
+        return make_pair(r, c - 1);
+    } else if (l == LINK::FORWARD) {
+        return make_pair(r, c + 1);
+    } else if (l == LINK::ABOVE_LEFT) {
+        return make_pair(r - 1, c);
+    } else if (l == LINK::ABOVE_RIGHT) {
+        return make_pair(r - 1, c + 1);
+    } else if (l == LINK::BELOW_LEFT) {
+        return make_pair(r + 1, c - 1);
+    } else if (l == LINK::BELOW_RIGHT) {
+        return make_pair(r + 1, c);
+    } else {
+        throw "Invalid link passed";
     }
 }
 
@@ -71,12 +90,10 @@ ostream &operator<<(ostream &os, const HexBoard &b) {
     os << "X is the horizontal player, O the vertial" << endl;
     auto cellToChar = [] (const Player &p) -> char {
         char cell = '.';
-        if (p == Player::X)
-        {
+        if (p == Player::X) {
             cell = 'X';
         }
-        if (p == Player::O)
-        {
+        if (p == Player::O) {
             cell = 'O';
         }
         return cell;
@@ -90,74 +107,66 @@ ostream &operator<<(ostream &os, const HexBoard &b) {
     };
 
     // They are stored line by line
-    for (int i = 0; i < b.m_size; i++)
-    {
+    for (int i = 0; i < b.m_size; i++) {
         os << string(i*2, ' ');
-        for (int j = 0; j < b.m_size - 1; j++)
-        {
+        for (int j = 0; j < b.m_size - 1; j++) {
             auto c = cellToChar(b.m_cells[i * b.m_size + j].m_owner);
             os << c << " - ";
         }
         os << cellToChar(b.m_cells[i * b.m_size + b.m_size - 1].m_owner) << endl;
 
         // Don't print edges below the last line
-        if (i == b.m_size - 1)
-        {
+        if (i == b.m_size - 1) {
             continue;
         }
 
         // Now print connection lines
         os << string(i*2 + 1, ' ');
 
-        for (int z = 0; z < b.m_size * 2 - 1; z++)
-        {
+        for (int z = 0; z < b.m_size * 2 - 1; z++) {
            os << edgeToChar(z) << ' ';
         }
         os << endl;
     }
+    return os;
 }
 
-bool HexBoard::Move(Player &p, int r, int c) {
+bool HexBoard::move(Player &p, int r, int c) {
 
     // The cell is not free
-    if (Cell(r, c).m_owner != Player::NONE)
-    {
+    if (cell(r, c).m_owner != Player::NONE) {
         return false;
     }
 
     // Check first moves: X is the horizontal player while O is the vertical
-    if (p == Player::X)
-    {
+    if (p == Player::X) {
         // Too many levels of indent ? Check Google style
         if (c == 0 || c == m_size - 1)
         {
-            Cell(r, c).m_owner = p;
+            cell(r, c).m_owner = p;
             return true;
         }
     }
-    if (p == Player::O)
-    {
+    if (p == Player::O) {
         if (r == 0 || r == m_size - 1)
         {
-            Cell(r, c).m_owner = p;
+            cell(r, c).m_owner = p;
             return true;
         }
     }
 
     // We need to check that the star of this cell connects to at least
     // one cell that already belongs to the player
-    for (auto cell : CellStar(r, c))
-    {
-        if (cell.get().m_owner == p)
-        {
-            Cell(r, c).m_owner = p;
+    for (auto cell : star(r, c)) {
+        if (cell.get().m_owner == p) {
+            this->cell(r, c).m_owner = p;
             return true;
         }
     }
     return false;
 }
 
-HexCell& HexBoard::Cell(int r, int c) {
+HexCell& HexBoard::cell(int r, int c) {
     if (r > m_size || c > m_size)
     {
         throw "Indexes out of range";
@@ -165,47 +174,147 @@ HexCell& HexBoard::Cell(int r, int c) {
     return m_cells[r * m_size + c];
 }
 
-vector<reference_wrapper<HexCell>> HexBoard::CellStar(int r, int c) {
+vector<reference_wrapper<HexCell>> HexBoard::star(int r, int c) {
     vector<reference_wrapper<HexCell>> star;
 
-    // TODO: Move and forward constructors, this isn't that efficient
+    // TODO: move and forward constructors, this isn't that efficient
     // Above left
-    if (r - 1 >= 0 && c - 1 >= 0)
+    if (r - 1 >= 0)
     {
-        star.push_back(Cell(r - 1, c - 1));
+        star.push_back(cell(r - 1, c));
     }
 
     // Above right
     if (r - 1 >= 0 && c + 1 < m_size)
     {
-        star.push_back(Cell(r - 1, c + 1));
+        star.push_back(cell(r - 1, c + 1));
     }
 
     // Backwards
     if (c - 1 >= 0)
     {
-        star.push_back(Cell(r, c - 1));
+        star.push_back(cell(r, c - 1));
     }
 
     // Forward
     if (c + 1 < m_size)
     {
-        star.push_back(Cell(r, c + 1));
+        star.push_back(cell(r, c + 1));
     }
 
     // Below left
     if (r + 1 < m_size && c - 1 >= 0)
     {
-        star.push_back(Cell(r + 1, c - 1));
+        star.push_back(cell(r + 1, c - 1));
     }
 
     // Below right
-    if (r + 1 < m_size && c + 1 < m_size)
+    if (r + 1 < m_size)
     {
-        star.push_back(Cell(r + 1, c + 1));
+        star.push_back(cell(r + 1, c));
     }
     return star;
 }
+
+bool HexBoard::visitUntil(int r, int c, Player p, function<bool(int, int, HexCell &)> f) {
+    vector<bool> visited(m_size * m_size, false);
+    list<pair<int, int>> l;
+    if (r >= m_size || c >=m_size || r < 0 || c < 0)
+    {
+        return false;
+    }
+
+    // Mark it as visited
+    visited[r * m_size + c] = true;
+    l.push_back(make_pair(r, c));
+
+    // Start the visit loop
+    while (!l.empty()) {
+        auto top = l.front();
+        auto r = top.first;
+        auto c = top.second;
+        auto cell = this->cell(r, c);
+
+        l.pop_front();
+
+        // Termination case
+        if (f(r, c, cell)) {
+            return true;
+        }
+
+        // Mark it so it is not visited next time
+        visited[r * m_size + c] = true;
+        for (auto i = 0; i < 6; i++) {
+            auto adj = cell.TraverseEdge(r, c, static_cast<LINK>(i));
+
+            // Out of bound
+            if (adj.first >= m_size ||
+                adj.second >=m_size ||
+                adj.first < 0 ||
+                adj.second < 0) {
+                continue;
+            }
+
+            // Already visited
+            if (visited[adj.first * m_size + adj.second]) {
+                continue;
+            }
+
+            // Does not belong to this player
+            if (this->cell(adj.first, adj.second).m_owner != p) {
+                continue;
+            }
+
+            // Add to list of cells to be visited
+            l.push_back(make_pair(adj.first, adj.second));
+        }
+    }
+    return false;
+}
+
+bool HexBoard::hasWon(Player &p) {
+
+    // We start searching from the first row/column, hence all we need to do
+    // is to check if we reached the last row/column
+    function<bool(int, int, HexCell&)> f = [p,this](int r, int c, HexCell& cell) {
+
+        if (p == Player::X && c == this->m_size - 1) {
+            return true;
+        }
+
+        if (p == Player::O && r == this->m_size - 1) {
+            return true;
+        }
+        return false;
+    };
+
+    if (p == Player::X) {
+
+        // Have we reached the other end starting from the first column for
+        // any row ?
+        for (int r = 0; r <  m_size; r++) {
+            if (visitUntil(r, 0, Player::X, f)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    else if (p == Player::O) {
+
+        // Have we reached the other end starting from the first row for
+        // every column ?
+        for (int c = 0; c <  m_size; c++) {
+            if (visitUntil(0, c, Player::O, f)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    else {
+        throw "Error:NONE player cannot win";
+    }
+}
+
 
 
 int main(int argn, char **argv) {
@@ -219,16 +328,21 @@ int main(int argn, char **argv) {
 
     int row, column;
     while (true) {
-        cout << "Move player " << current << endl;
+        cout << "move player " << current << endl;
         cin >> row;
         cin >> column;
-        auto success = c.Move(current, row, column);
-        if (!success)
-        {
+        auto success = c.move(current, row, column);
+        if (!success) {
             cout << "Illegal move" << endl;
             continue;
+        }
+        if (c.hasWon(current)) {
+            cout << current << " has won the game!" << endl;
+            cout << c;
+            break;
         }
         cout << c;
         current = (current == Player::X) ? Player::O : Player::X;
     }
+    return 0;
 }
