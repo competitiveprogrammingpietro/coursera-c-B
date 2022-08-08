@@ -274,26 +274,15 @@ bool HexBoard::visitUntil(int r, int c, Player p, function<bool(int, int, HexCel
 
 bool HexBoard::hasWon(Player &p) {
 
-    // We start searching from the first row/column, hence all we need to do
-    // is to check if we reached the last row/column
-    function<bool(int, int, HexCell&)> f = [p,this](int r, int c, HexCell& cell) {
-
-        if (p == Player::X && c == this->m_size - 1) {
-            return true;
-        }
-
-        if (p == Player::O && r == this->m_size - 1) {
-            return true;
-        }
-        return false;
-    };
-
     if (p == Player::X) {
 
-        // Have we reached the other end starting from the first column for
-        // any row ?
+        // Check if the other end can be reached starting from the first column of any row
         for (int r = 0; r <  m_size; r++) {
-            if (visitUntil(r, 0, Player::X, f)) {
+            if (visitUntil(r,
+                           0,
+                           Player::X,
+                           [this](int r, int c, HexCell& cell)
+                           { return c == this->m_size - 1; })) {
                 return true;
             }
         }
@@ -301,10 +290,13 @@ bool HexBoard::hasWon(Player &p) {
     }
     else if (p == Player::O) {
 
-        // Have we reached the other end starting from the first row for
-        // every column ?
+        // Check if the other end can be reached starting from the first row of any column
         for (int c = 0; c <  m_size; c++) {
-            if (visitUntil(0, c, Player::O, f)) {
+            if (visitUntil(0,
+                           c,
+                           Player::O,
+                           [this](int r, int c, HexCell& cell)
+                           { return r == this->m_size - 1; })) {
                 return true;
             }
         }
