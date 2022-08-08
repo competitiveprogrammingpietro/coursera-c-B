@@ -78,16 +78,14 @@ HexBoard::HexBoard(int size) {
     return;
 }
 
-// It isn't as daunting as it seems:
+// Generate an ASCII board using the pattern below:
 //. - . - . - . - . - . - .
 // \ / \ / \ / \ / \ / \ / \
 //  . - . - . - . - . - . - .
 //   \ / \ / \ / \ / \ / \ / \
 //    . - . - . - . - . - . - .
-
 ostream &operator<<(ostream &os, const HexBoard &b) {
 
-    os << "X is the horizontal player, O the vertial" << endl;
     auto cellToChar = [] (const Player &p) -> char {
         char cell = '.';
         if (p == Player::X) {
@@ -131,16 +129,23 @@ ostream &operator<<(ostream &os, const HexBoard &b) {
     return os;
 }
 
+// Extends the set of cells belonging to a given player, thus 'moving' it
+// into a cell. Returns true if the move was successfull false otherwise.
+// A move can be invalid if:
+// 1. the cell is already taken
+// 2. there are not adjacent cells belonging to the player from which it is
+//    possible to move into the requested cell
 bool HexBoard::move(Player &p, int r, int c) {
 
-    // The cell is not free
+    // Cell is already taken
     if (cell(r, c).m_owner != Player::NONE) {
         return false;
     }
 
-    // Check first moves: X is the horizontal player while O is the vertical
+    // A move to the edge of the board is always legit as long as it
+    // is respecting the player's direction of play. For instance the
+    // the first move.
     if (p == Player::X) {
-        // Too many levels of indent ? Check Google style
         if (c == 0 || c == m_size - 1)
         {
             cell(r, c).m_owner = p;
@@ -155,17 +160,20 @@ bool HexBoard::move(Player &p, int r, int c) {
         }
     }
 
-    // We need to check that the star of this cell connects to at least
-    // one cell that already belongs to the player
+    // If at least one of the cells adjacent to the current one belongs to the
+    // current player we assign the cell to this player.
     for (auto cell : star(r, c)) {
         if (cell.get().m_owner == p) {
             this->cell(r, c).m_owner = p;
             return true;
         }
     }
+
+    // This move is not legal
     return false;
 }
 
+// Return a reference to the cell at the given row, column
 HexCell& HexBoard::cell(int r, int c) {
     if (r > m_size || c > m_size)
     {
@@ -174,6 +182,8 @@ HexCell& HexBoard::cell(int r, int c) {
     return m_cells[r * m_size + c];
 }
 
+// Return a vector of references to cells adjacent to the one at the row and
+// column passed as arguments
 vector<reference_wrapper<HexCell>> HexBoard::star(int r, int c) {
     vector<reference_wrapper<HexCell>> star;
 
@@ -216,6 +226,13 @@ vector<reference_wrapper<HexCell>> HexBoard::star(int r, int c) {
     return star;
 }
 
+// This function implements the classic DFS algorithm.
+// In the board there are two graphs, one for each player, the function starts 
+// visiting cells from the cell at the row and column passed as arguments and 
+// continue until no more cells can be visited or the predicate passed as a
+// function object is satisfied.
+// Return true if the predicate was satisfied at least once, false if upon the
+// completion of the visit the predicate has never been satisfied.
 bool HexBoard::visitUntil(int r, int c, Player p, function<bool(int, int, HexCell &)> f) {
     vector<bool> visited(m_size * m_size, false);
     list<pair<int, int>> l;
@@ -272,6 +289,7 @@ bool HexBoard::visitUntil(int r, int c, Player p, function<bool(int, int, HexCel
     return false;
 }
 
+
 bool HexBoard::hasWon(Player &p) {
 
     if (p == Player::X) {
@@ -320,7 +338,8 @@ int main(int argn, char **argv) {
 
     int row, column;
     while (true) {
-        cout << "move player " << current << endl;
+        cout << "X plays horizontally, O vertically" << endl;
+        cout << "Next move '" << current << "'" << endl;
         cin >> row;
         cin >> column;
         auto success = c.move(current, row, column);
