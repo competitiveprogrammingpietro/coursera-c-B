@@ -36,6 +36,11 @@ enum class LINK : int {
     BELOW_LEFT
 };
 
+enum class LEVEL : int {
+    EASY = 100,
+    MEDIUM = 200,
+    HARD = 300
+};
 class HexCell {
 public:
     HexCell(vector<bool>& star);
@@ -45,36 +50,40 @@ private:
     bool m_star[6];
 };
 
-class HexBoard {
-
+class HexGraph {
 public:
-    HexBoard(int size);
-    Player won();
-    bool move(Player &p, int r, int c);
-    int  numberOfMoves() const { return m_moves; };
-    int size() const { return m_size; };
-    vector<Player> board() const { return m_owners; };
-    friend ostream &operator<<(ostream &os, const HexBoard &p);
-private:
-    const HexCell &cellAt(int r, int c) const;
-    Player playerAt(int r, int c) const ;
-    vector<pair<int, int>> star(int r, int c);
+    HexGraph(int size);
+    const HexCell& cellAt(int r, int c) const;
     bool visitUntil(int r,
                     int c,
-                    Player p,
-                    function<bool(int, int)> fv) const;
-    int             m_moves;
-    int             m_size;
-    vector<Player>  m_owners;
+                    function<bool(int, int)> fvisit,
+                    function<bool(int, int)> fstop) const;
+private:
     vector<HexCell> m_graph;
+    int             m_size;
 };
 
-class HexTrial {
+class HexBoard {
 public:
-    HexTrial(HexBoard &b): m_board(b) { };
-    double run(int number, int r, int c);
+    HexBoard(int size, Player start, Player ai);
+    Player won();
+    Player current();
+    Player next();
+    void play();
+    bool move(int r, int c);
+    Player playerAt(int r, int c) const ;
+    vector<Player> board() const { return m_board; };
+    friend ostream &operator<<(ostream &os, const HexBoard &p);
+protected:
+    Player won(vector<Player>& board);
 private:
-    Player single(Player next);
-    const HexBoard& m_board;
+    pair<int, int> moveAI();
+    Player trial(Player next, vector<Player>& board);
+    int             m_moves;
+    int             m_size;
+    vector<Player>  m_board;
+    HexGraph        m_graph;
+    Player          m_current;
+    Player          m_ai;
 };
 #endif //COURSERA_C_B_HEXBOARD_H
