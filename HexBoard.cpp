@@ -165,7 +165,7 @@ HexBoard::HexBoard(int size,
                                   m_current(start),
                                   m_moves(0),
                                   m_board(size * size, Player::NONE),
-                                  m_graph(size * size) {
+                                  m_graph(size) {
     return;
 }
 
@@ -238,6 +238,7 @@ bool HexBoard::move(int r, int c) {
 
 void HexBoard::undoMove(int r, int c) {
     m_board[r * m_size + c] = Player::NONE;
+    m_current = (m_current == Player::X) ? Player::O : Player::X;
     m_moves--;
 }
 
@@ -290,8 +291,7 @@ pair<int, int> HexAI::nextMove() {
     int maxr, maxc;
     double max = 0;
 
-    assert(m_board.ai() != Player::NONE);
-    assert(m_board.current()== m_board.ai());
+    assert(m_player != Player::NONE);
 
     // Each un-assigned cell on the board is a plausible move: go through them
     // all the run the proper number of trials based on the difficulty level
@@ -315,12 +315,18 @@ pair<int, int> HexAI::nextMove() {
         int success = 0;
         int total =  static_cast<std::underlying_type<LEVEL>::type>(m_level);
         for (auto i = 0;i < total; i++) {
-            if (trial() == m_board.ai()) {
+            if (trial() == m_player) {
                 success++;
             }
         }
 
         double ratio = ((double) success) / total;
+
+        // Success !
+        if (ratio == 1) {
+            return make_pair(r, c);
+        }
+        cout << "Success ratio for " << r << "," << c << " = " << success << "/" << total << "=" << ratio << endl;
         if (ratio > max) {
             max = ratio;
             maxr = r;
@@ -334,8 +340,6 @@ pair<int, int> HexAI::nextMove() {
 
 // Comment this
 Player HexAI::trial() {
-
-    // TODO: exception study it a little bit better
     int length = m_board.size() * m_board.size();
     vector<int> emptyCellsIndex(length - m_board.movesNumber());
     int counter = 0;
@@ -376,7 +380,7 @@ int main(int argn, char **argv) {
     cout << "Size of the board:" << endl;
     cin >> size;
 
-    char ai;
+    char ai = 'N';
     cout << "If you wish 'O' to be the AI please enter 'Y', any other key otherwise" << endl;
     cin >> ai;
     auto aiPlayer = ai == 'Y' ? Player::O : Player::NONE;
@@ -410,26 +414,26 @@ int main(int argn, char **argv) {
         cout << "X plays horizontally, O vertically" << endl;
 
         // AI plays
-        if (c.current() == aiPlayer) {
+        Player current = c.current();
+        if (current == aiPlayer) {
 
-            HexAI ai(LEVEL::EASY, Player p, c);
+            HexAI ai(aiLevel, aiPlayer, c);
             auto aiMove = ai.nextMove();
             row = aiMove.first;
             column = aiMove.second;
         } else {
 
             // Human plays
-            cout << "Next move '" << c.current() << "'" << endl;
+            cout << "Next move '" << current << "'" << endl;
             cin >> row;
             cin >> column;
         }
-
         auto success = c.move(row, column);
         if (!success) {
             cout << "Illegal move" << endl;
             continue;
         }
-        cout << "Player " << c.current() << " takes (" << row << "," << column << ")" << endl;
+        cout << "Player " << current << " takes (" << row << "," << column << ")" << endl;
         auto p = c.won();
         if (p != Player::NONE) {
             cout << p << " has won the game!" << endl;

@@ -37,9 +37,9 @@ enum class LINK : int {
 };
 
 enum class LEVEL : int {
-    EASY = 1000,
-    MEDIUM = 2000,
-    HARD = 3000
+    EASY =   1000,
+    MEDIUM = 500 * 1000,
+    HARD =   1000 * 1000
 };
 
 class HexCell {
@@ -87,12 +87,15 @@ protected:
 
 class HexAI {
 public:
-    HexAI(LEVEL l, HexBoard& board): m_board(board), m_level(l) { };
+    HexAI(LEVEL l, Player p, HexBoard& board): m_board(board),
+                                               m_level(l),
+                                               m_player(p) { };
     pair<int, int> nextMove();
 
 protected:
     Player trial();
     LEVEL    m_level;
     HexBoard m_board;
+    Player   m_player;
 };
 #endif //COURSERA_C_B_HEXBOARD_H
