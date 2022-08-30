@@ -6,6 +6,8 @@
 #include <iostream>
 #include <list>
 #include <algorithm>
+#include <memory>
+#include <cassert>
 #include "HexBoard.h"
 
 HexCell::HexCell(vector<bool> &star) {
@@ -72,7 +74,7 @@ HexGraph::HexGraph(int size) : m_size(size) {
                 star[int(LINK::BELOW_LEFT)] = false;
                 star[int(LINK::BELOW_RIGHT)] = false;
             }
-            m_graph.push_back(HexCell(star));
+            m_graph.push_back(make_shared<HexCell>(star));
 
             // Reset all values
             fill(star.begin(), star.end(), true);
@@ -87,7 +89,7 @@ const HexCell& HexGraph::cellAt(int r, int c) const {
     {
         throw "Indexes out of range";
     }
-    return m_graph[r * m_size + c];
+    return *m_graph[r * m_size + c];
 }
 
 // This function implements the classic DFS algorithm.
@@ -158,12 +160,12 @@ bool HexGraph::visitUntil(int r,
     return false;
 }
 
-HexBoard::HexBoard(int size, Player start, Player ai): m_size(size),
-                                                       m_current(start),
-                                                       m_ai(ai),
-                                                       m_moves(0),
-                                                       m_board(size * size, Player::NONE),
-                                                       m_graph(size * size) {
+HexBoard::HexBoard(int size,
+                   Player start): m_size(size),
+                                  m_current(start),
+                                  m_moves(0),
+                                  m_board(size * size, Player::NONE),
+                                  m_graph(size * size) {
     return;
 }
 
@@ -234,7 +236,12 @@ bool HexBoard::move(int r, int c) {
     return true;
 }
 
-Player HexBoard::won(vector<Player> &board) {
+void HexBoard::undoMove(int r, int c) {
+    m_board[r * m_size + c] = Player::NONE;
+    m_moves--;
+}
+
+Player HexBoard::won() {
 
     // Check if X has won : the other end can be reached starting from the
     // first column of any row
@@ -247,7 +254,7 @@ Player HexBoard::won(vector<Player> &board) {
         // Start a graph visit from this cell
         if (m_graph.visitUntil(r,
                                0,
-                               [this, board](int r, int c) { return board[r * this->m_size + c] == Player::X; },
+                               [this](int r, int c) { return this->m_board[r * this->m_size + c] == Player::X; },
                                [this](int r, int c) { return c == this->m_size - 1; })) {
             return Player::X;
         }
@@ -262,16 +269,12 @@ Player HexBoard::won(vector<Player> &board) {
 
         if (m_graph.visitUntil(0,
                                c,
-                               [this,board](int r, int c) { return board[r * m_size + c] == Player::O; },
+                               [this](int r, int c) { return this->m_board[r * m_size + c] == Player::O; },
                                [this](int r, int c) { return r == this->m_size - 1; })) {
             return Player::O;
         }
     }
     return Player::NONE;
-}
-
-Player HexBoard::won() {
-    return won(m_board);
 }
 
 Player HexBoard::playerAt(int r, int c) const {
@@ -282,97 +285,37 @@ Player HexBoard::playerAt(int r, int c) const {
     return m_board[r * m_size + c];
 }
 
-// Comment this
-Player HexBoard::trial(Player next, vector<Player>& board) {
 
-    // TODO: exception study it a little bit better
-    if (next == Player::NONE) {
-        throw "Error can't do a trial with next move assigned to player NONE";
-    }
-    auto size = m_size * m_size;
-    vector<int> emptyCellsIndex(size - m_moves);
-    int c = 0;
-    for (int i = 0; i < size; i++) {
-
-        // Fill up empty cell indexes
-        if (board[i] == Player::NONE)
-            emptyCellsIndex[c++] = i;
-    }
-
-    // Shuffle them around
-    random_shuffle(emptyCellsIndex.begin(), emptyCellsIndex.end());
-
-    // Play the rest of the game
-    for (auto p : emptyCellsIndex) {
-        board[p] = next;
-        next = (next == Player::X) ? Player::O : Player::X;
-    }
-    return won(board);
-}
-
-Player HexBoard::current() {
-    return m_current;
-}
-
-Player HexBoard::next() {
-    if (m_current == Player::NONE) {
-        throw "Error: no player";
-    }
-    return (m_current == Player::X) ? Player::O : Player::X;
-}
-
-void HexBoard::play() {
-    int row, column;
-    while (true) {
-        cout << *this << endl;
-        cout << "X plays horizontally, O vertically" << endl;
-
-        // AI plays
-        if (m_current == m_ai) {
-            auto aiMove = moveAI();
-            row = aiMove.first;
-            column = aiMove.second;
-        } else {
-
-            // Human plays
-            cout << "Next move '" << m_current << "'" << endl;
-            cin >> row;
-            cin >> column;
-        }
-
-        auto success = move(row, column);
-        if (!success) {
-            cout << "Illegal move" << endl;
-            continue;
-        }
-        auto p = won();
-        if (p != Player::NONE) {
-            cout << p << " has won the game!" << endl;
-            cout << *this;
-            break;
-        }
-    }
-}
-
-pair<int, int> HexBoard::moveAI() {
-    vector<Player> boardCopy = m_board;
-    int r, c;
+pair<int, int> HexAI::nextMove() {
+    int maxr, maxc;
     double max = 0;
-    for (auto i = 0; i < m_board.size(); i++) {
+
+    assert(m_board.ai() != Player::NONE);
+    assert(m_board.current()== m_board.ai());
+
+    // Each un-assigned cell on the board is a plausible move: go through them
+    // all the run the proper number of trials based on the difficulty level
+    // set. The move giving out the best likelihood of winning the game is the
+    // next move.
+    int l = m_board.size() * m_board.size();
+    for (auto i = 0; i < l; i++) {
+
+        int r = i / m_board.size();
+        int c = i % m_board.size();
 
         // This is not a plausible move.
-        if (m_board[i] != Player::NONE) {
+        if (m_board.playerAt(r, c)!= Player::NONE) {
             continue;
         }
 
-        // Simulate the move
-        boardCopy[i] = m_current;
+        // Simulate the move: this changes the next player
+        m_board.move(r, c);
 
         // Run trials
-        int success;
-        int total = 100;
+        int success = 0;
+        int total =  static_cast<std::underlying_type<LEVEL>::type>(m_level);
         for (auto i = 0;i < total; i++) {
-            if (trial(next(), boardCopy) == m_current) {
+            if (trial() == m_board.ai()) {
                 success++;
             }
         }
@@ -380,21 +323,119 @@ pair<int, int> HexBoard::moveAI() {
         double ratio = ((double) success) / total;
         if (ratio > max) {
             max = ratio;
-            r = i / m_size;
-            c = i % m_size;
+            maxr = r;
+            maxc = c;
         }
+        m_board.undoMove(r, c);
     }
-    return make_pair(r, c);
+    return make_pair(maxr, maxc);
+}
+
+
+// Comment this
+Player HexAI::trial() {
+
+    // TODO: exception study it a little bit better
+    int length = m_board.size() * m_board.size();
+    vector<int> emptyCellsIndex(length - m_board.movesNumber());
+    int counter = 0;
+    for (int i = 0; i < length; i++) {
+
+        // Fill up empty cell indexes
+        int r, c;
+        r = i / m_board.size();
+        c = i % m_board.size();
+
+        if (m_board.playerAt(r, c) == Player::NONE)
+            emptyCellsIndex[counter++] = i;
+    }
+
+    // Shuffle them around
+    random_shuffle(emptyCellsIndex.begin(), emptyCellsIndex.end());
+
+    // Create temporary board to play the trial on. Should be too expensive as
+    // the graph is a vector of smart pointers
+    HexBoard trialBoard = m_board;
+
+    // Play the rest of the game
+    for (auto p : emptyCellsIndex) {
+        int r = p / trialBoard.size();
+        int c = p % trialBoard.size();
+        bool res = trialBoard.move(r, c);
+
+        // All move MUST be legit. They should be as all indexes in the
+        // emptyCellIndex contains empty cells.
+        assert(res);
+    }
+    return trialBoard.won();
 }
 
 
 int main(int argn, char **argv) {
     int size;
-
     cout << "Size of the board:" << endl;
     cin >> size;
-    HexBoard c(size, Player::X, Player::O);
-    c.play();
+
+    char ai;
+    cout << "If you wish 'O' to be the AI please enter 'Y', any other key otherwise" << endl;
+    cin >> ai;
+    auto aiPlayer = ai == 'Y' ? Player::O : Player::NONE;
+
+    LEVEL aiLevel = LEVEL::EASY;
+    if (aiPlayer != Player::NONE) {
+        char charAiLevel;
+        cout << "Select the level of difficulty [H = hard, M = medium, E = easy]. Default E" << endl;
+        cin >> charAiLevel;
+        switch (charAiLevel) {
+            case 'H':
+                aiLevel = LEVEL::HARD;
+                break;
+            case 'M':
+                aiLevel = LEVEL::MEDIUM;
+                break;
+            case 'E':
+                aiLevel = LEVEL::EASY;
+                break;
+            default:
+                 cout << "Invalid level code, defaulting to easy." << endl;
+                break;
+        }
+    }
+
+    HexBoard c(size, Player::X);
+    int row, column;
+
+    while (true) {
+        cout << c << endl;
+        cout << "X plays horizontally, O vertically" << endl;
+
+        // AI plays
+        if (c.current() == aiPlayer) {
+
+            HexAI ai(LEVEL::EASY, Player p, c);
+            auto aiMove = ai.nextMove();
+            row = aiMove.first;
+            column = aiMove.second;
+        } else {
+
+            // Human plays
+            cout << "Next move '" << c.current() << "'" << endl;
+            cin >> row;
+            cin >> column;
+        }
+
+        auto success = c.move(row, column);
+        if (!success) {
+            cout << "Illegal move" << endl;
+            continue;
+        }
+        cout << "Player " << c.current() << " takes (" << row << "," << column << ")" << endl;
+        auto p = c.won();
+        if (p != Player::NONE) {
+            cout << p << " has won the game!" << endl;
+            cout << c;
+            break;
+        }
+    }
     return 0;
 }
-

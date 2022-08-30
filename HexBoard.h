@@ -37,10 +37,11 @@ enum class LINK : int {
 };
 
 enum class LEVEL : int {
-    EASY = 100,
-    MEDIUM = 200,
-    HARD = 300
+    EASY = 1000,
+    MEDIUM = 2000,
+    HARD = 3000
 };
+
 class HexCell {
 public:
     HexCell(vector<bool>& star);
@@ -59,31 +60,39 @@ public:
                     function<bool(int, int)> fvisit,
                     function<bool(int, int)> fstop) const;
 private:
-    vector<HexCell> m_graph;
-    int             m_size;
+    vector<shared_ptr<HexCell>> m_graph;
+    int                         m_size;
 };
 
 class HexBoard {
 public:
-    HexBoard(int size, Player start, Player ai);
+    HexBoard(int size, Player start);
     Player won();
-    Player current();
-    Player next();
     void play();
+    int size()       { return m_size; }
+    int movesNumber() { return m_moves; }
+    Player current() { return m_current; }
     bool move(int r, int c);
+    void undoMove(int r, int c);
     Player playerAt(int r, int c) const ;
-    vector<Player> board() const { return m_board; };
     friend ostream &operator<<(ostream &os, const HexBoard &p);
+
 protected:
-    Player won(vector<Player>& board);
-private:
-    pair<int, int> moveAI();
-    Player trial(Player next, vector<Player>& board);
     int             m_moves;
     int             m_size;
     vector<Player>  m_board;
     HexGraph        m_graph;
     Player          m_current;
-    Player          m_ai;
+};
+
+class HexAI {
+public:
+    HexAI(LEVEL l, HexBoard& board): m_board(board), m_level(l) { };
+    pair<int, int> nextMove();
+
+protected:
+    Player trial();
+    LEVEL    m_level;
+    HexBoard m_board;
 };
 #endif //COURSERA_C_B_HEXBOARD_H
