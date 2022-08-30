@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <memory>
 #include <cassert>
+#include <future>
 #include "HexBoard.h"
 
 HexCell::HexCell(vector<bool> &star) {
@@ -314,11 +315,23 @@ pair<int, int> HexAI::nextMove() {
         // Run trials
         int success = 0;
         int total =  static_cast<std::underlying_type<LEVEL>::type>(m_level);
+        vector<future<Player>> futures;
         for (auto i = 0;i < total; i++) {
-            if (trial() == m_player) {
+
+            futures.emplace_back(async(launch::async, [this] { return trial(); }));
+        }
+
+        for (auto &f : futures) {
+
+            if (f.get() == m_player) {
                 success++;
             }
         }
+            /*
+            if (trial() == m_player) {
+                success++;
+            }
+             */
 
         double ratio = ((double) success) / total;
 
@@ -326,7 +339,7 @@ pair<int, int> HexAI::nextMove() {
         if (ratio == 1) {
             return make_pair(r, c);
         }
-        cout << "Success ratio for " << r << "," << c << " = " << success << "/" << total << "=" << ratio << endl;
+        //cout << "Success ratio for " << r << "," << c << " = " << success << "/" << total << "=" << ratio << endl;
         if (ratio > max) {
             max = ratio;
             maxr = r;
@@ -338,7 +351,11 @@ pair<int, int> HexAI::nextMove() {
 }
 
 
-// Comment this
+// This function implements a single trial. The idea is to store all the empty cell
+// indexes in a vector and re-shuffle them using the function provided in the standard
+// library: in effect this vector now represents a randomized play of the next n
+// plausible moves. Each index represents the next move of the next player and so forth
+// until the board is filled up and a winner can be declared.
 Player HexAI::trial() {
     int length = m_board.size() * m_board.size();
     vector<int> emptyCellsIndex(length - m_board.movesNumber());
@@ -365,7 +382,7 @@ Player HexAI::trial() {
     for (auto p : emptyCellsIndex) {
         int r = p / trialBoard.size();
         int c = p % trialBoard.size();
-        bool res = trialBoard.move(r, c);
+        bool res = trialBoard.move(r, c); // That changes the current player
 
         // All move MUST be legit. They should be as all indexes in the
         // emptyCellIndex contains empty cells.
