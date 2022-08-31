@@ -91,11 +91,11 @@ public:
                                                m_level(l),
                                                m_player(p) { };
     pair<int, int> nextMove();
-
 protected:
-    Player trial();
     LEVEL    m_level;
     HexBoard m_board;
     Player   m_player;
+private:
+    static Player trial(HexBoard& b);
 };
 #endif //COURSERA_C_B_HEXBOARD_H

@@ -312,34 +312,44 @@ pair<int, int> HexAI::nextMove() {
         // Simulate the move: this changes the next player
         m_board.move(r, c);
 
-        // Run trials
+        // Run trials. In order to speed up the processing we use a number
+        // of asynch tasks equals to parallelism the hardware can provide
+        // as recommended by the thread::hardware_concurrency() function.
+        // Each task loops for as many times as it is required to in order
+        // to perform as many trials as the level of difficulty requires.
         int success = 0;
         int total =  static_cast<std::underlying_type<LEVEL>::type>(m_level);
-        vector<future<Player>> futures;
-        for (auto i = 0;i < total; i++) {
+        HexBoard b = m_board;
+        Player p = m_player;
+        vector<future<int>> futures;
+        int runs = total / thread::hardware_concurrency();
 
-            futures.emplace_back(async(launch::async, [this] { return trial(); }));
+        // Run tasks
+        for (auto i = 0;i < thread::hardware_concurrency(); i++) {
+            futures.emplace_back(
+                    async(launch::async,
+                    [&b, runs, p] {
+                           int success = 0;
+                           for (int i = 0; i < runs; i++) {
+                               if (HexAI::trial(b) == p)
+                                   success++;
+                           }
+                           return success;
+                         }));
         }
 
+        // Combine results
         for (auto &f : futures) {
-
-            if (f.get() == m_player) {
-                success++;
-            }
+            success += f.get();
         }
-            /*
-            if (trial() == m_player) {
-                success++;
-            }
-             */
 
         double ratio = ((double) success) / total;
 
+        cerr << "Ratio (" << r << "," << c << ") = " << ratio << " ";
         // Success !
         if (ratio == 1) {
             return make_pair(r, c);
         }
-        //cout << "Success ratio for " << r << "," << c << " = " << success << "/" << total << "=" << ratio << endl;
         if (ratio > max) {
             max = ratio;
             maxr = r;
@@ -347,27 +357,28 @@ pair<int, int> HexAI::nextMove() {
         }
         m_board.undoMove(r, c);
     }
+    cerr << endl;
     return make_pair(maxr, maxc);
 }
-
 
 // This function implements a single trial. The idea is to store all the empty cell
 // indexes in a vector and re-shuffle them using the function provided in the standard
 // library: in effect this vector now represents a randomized play of the next n
 // plausible moves. Each index represents the next move of the next player and so forth
 // until the board is filled up and a winner can be declared.
-Player HexAI::trial() {
-    int length = m_board.size() * m_board.size();
-    vector<int> emptyCellsIndex(length - m_board.movesNumber());
+Player HexAI::trial(HexBoard& b) {
+
+    int length = b.size() * b.size();
+    vector<int> emptyCellsIndex(length - b.movesNumber());
     int counter = 0;
     for (int i = 0; i < length; i++) {
 
         // Fill up empty cell indexes
         int r, c;
-        r = i / m_board.size();
-        c = i % m_board.size();
+        r = i / b.size();
+        c = i % b.size();
 
-        if (m_board.playerAt(r, c) == Player::NONE)
+        if (b.playerAt(r, c) == Player::NONE)
             emptyCellsIndex[counter++] = i;
     }
 
@@ -376,7 +387,7 @@ Player HexAI::trial() {
 
     // Create temporary board to play the trial on. Should be too expensive as
     // the graph is a vector of smart pointers
-    HexBoard trialBoard = m_board;
+    HexBoard trialBoard = b;
 
     // Play the rest of the game
     for (auto p : emptyCellsIndex) {
@@ -390,7 +401,6 @@ Player HexAI::trial() {
     }
     return trialBoard.won();
 }
-
 
 int main(int argn, char **argv) {
     int size;
@@ -430,8 +440,10 @@ int main(int argn, char **argv) {
         cout << c << endl;
         cout << "X plays horizontally, O vertically" << endl;
 
-        // AI plays
         Player current = c.current();
+        cout << "Next move '" << current << "'" << endl;
+
+        // AI plays
         if (current == aiPlayer) {
 
             HexAI ai(aiLevel, aiPlayer, c);
@@ -441,7 +453,6 @@ int main(int argn, char **argv) {
         } else {
 
             // Human plays
-            cout << "Next move '" << current << "'" << endl;
             cin >> row;
             cin >> column;
         }
