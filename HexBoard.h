@@ -38,8 +38,8 @@ enum class LINK : int {
 
 enum class LEVEL : int {
     EASY =   1000,
-    MEDIUM = 500 * 1000,
-    HARD =   1000 * 1000
+    MEDIUM = 5 * 1000,
+    HARD =   10 * 1000
 };
 
 class HexCell {

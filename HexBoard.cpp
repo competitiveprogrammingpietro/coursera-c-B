@@ -345,7 +345,7 @@ pair<int, int> HexAI::nextMove() {
 
         double ratio = ((double) success) / total;
 
-        cerr << "Ratio (" << r << "," << c << ") = " << ratio << " ";
+        //cerr << "Ratio (" << r << "," << c << ") = " << ratio << " ";
         // Success !
         if (ratio == 1) {
             return make_pair(r, c);
@@ -357,7 +357,7 @@ pair<int, int> HexAI::nextMove() {
         }
         m_board.undoMove(r, c);
     }
-    cerr << endl;
+    //cerr << endl;
     return make_pair(maxr, maxc);
 }
 
