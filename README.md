@@ -5,7 +5,7 @@ The project implements the Hex game. The spirit is to understand and use most of
 by writing a non-trivial program. 
 
 The AI uses a Montecarlo simulation to compute the next move while a graph implements the Hex board, some level
-of parallelism is achieved to speed up the trials using the asynch-task/feature functionalities provided by the
+of parallelism is achieved to speed up the trials using the asynch-task/future functionalities provided by the
 newer releases of C++.
 
 Other AI algorithm touched during the course are the min-max and alpha-beta.
