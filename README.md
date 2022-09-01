@@ -8,7 +8,7 @@ The AI uses a Montecarlo simulation to compute the next move while a graph imple
 of parallelism is achieved to speed up the trials using the asynch-task/future functionalities provided by the
 newer releases of C++.
 
-Other AI algorithm touched during the course are the min-max and alpha-beta.
+Other AI algorithms touched during the course are the min-max and alpha-beta.
 
 This is the main homework - developed in stages - for the Coursera course
 `https://www.coursera.org/learn/c-plus-plus-b/home/week/4`
