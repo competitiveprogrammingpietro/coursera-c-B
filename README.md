@@ -23,8 +23,4 @@ The project it's straightforwared to compile, just issue to generate an executab
 Running
 -------
 
-The executable asks the end user a few questions before the game is started
-
-and the game starts.
-
-
+The executable asks the end user a few questions before starting the game.
