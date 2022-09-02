@@ -4,8 +4,8 @@ Project
 The project implements the Hex game. The spirit is to understand and use most of the C++11 and onwards features
 by writing a non-trivial program.
 
-`https://en.wikipedia.org/wiki/Hex_(board_game)`
-`http://www.lutanho.net/play/hex.html`
+[Hex game](https://en.wikipedia.org/wiki/Hex_(board_game))
+[Play Hex online](http://www.lutanho.net/play/hex.html)
 
 The AI uses a Montecarlo simulation to compute the next move while a graph implements the Hex board, some level
 of parallelism is achieved to speed up the trials using the asynch-task/future functionalities provided by the
